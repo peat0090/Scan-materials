@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+* {
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+}
+
+.font-mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* QR scan pulse animation */
+@keyframes scan-line {
+  0%   { top: 0%; opacity: 1; }
+  50%  { opacity: 0.6; }
+  100% { top: 100%; opacity: 1; }
+}
+
+.scan-line {
+  animation: scan-line 2s linear infinite;
+}
+
+@keyframes corner-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.corner-pulse {
+  animation: corner-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.slide-up {
+  animation: slide-up 0.35s ease forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.fade-in {
+  animation: fade-in 0.4s ease forwards;
+}
