@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar'
 
 const SECTIONS  = ['Hydraulic', 'Mechatronic', 'Mechanic', 'IT', 'Admin', 'Logistics', 'QC', 'Production']
 const DIVISIONS = ['ฝ่ายซ่อมบำรุง', 'ฝ่ายผลิต', 'ฝ่ายคลังสินค้า', 'ฝ่ายจัดซื้อ', 'ฝ่าย IT', 'ฝ่ายบริหาร']
+const UNITS = ['ชิ้น', 'อัน', 'ตัว', 'เส้น', 'ม้วน', 'กล่อง', 'ถุง', 'แพ็ค', 'โหล', 'กิโลกรัม', 'กรัม', 'ลิตร', 'มิลลิลิตร', 'เมตร', 'ฟุต']
 
 function QRScanner({ onScan }) {
   const videoRef    = useRef(null)
@@ -191,23 +192,48 @@ export default function ScanPage() {
 
     // ถ้ามี record เดิม → บวกจำนวนเพิ่ม
     if (lookup?.existing) {
-      const newQty = (lookup.existing.quantity || 0) + Number(form.quantity)
-      const { error: err } = await supabase
-        .from('scan_records')
-        .update({
-          quantity:   newQty,
-          scanned_by: user?.fullname,
-          scanned_at: new Date().toISOString(),
-          note:       form.note.trim() || lookup.existing.note,
-          receiver:   form.receiver.trim() || lookup.existing.receiver || user?.fullname,
-        })
-        .eq('id', lookup.existing.id)
+  const qtyBefore = lookup.existing.quantity || 0
+  const qtyAdded  = Number(form.quantity)
+  const qtyAfter  = qtyBefore + qtyAdded
 
-      if (err) { setError('บันทึกไม่สำเร็จ: ' + err.message); setSaving(false); return }
-      setSaved(true); setSaving(false)
-      setTimeout(() => navigate(`/items/${lookup.existing.id}`), 1200)
-      return
-    }
+  // 1. อัปเดต record เดิม
+  const { error: errUpdate } = await supabase
+    .from('scan_records')
+    .update({
+      quantity:   qtyAfter,
+      scanned_by: user?.fullname,
+      scanned_at: new Date().toISOString(),
+      receiver:   form.receiver.trim() || lookup.existing.receiver || user?.fullname,
+      note:       form.note.trim() || lookup.existing.note,
+    })
+    .eq('id', lookup.existing.id)
+
+  if (errUpdate) {
+    setError('บันทึกไม่สำเร็จ: ' + errUpdate.message)
+    setSaving(false)
+    return
+  }
+
+  // 2. บันทึก log ใหม่
+  await supabase
+    .from('scan_logs')
+    .insert([{
+      record_id:    lookup.existing.id,
+      product_id:   form.product_id,
+      product_name: form.product_name,
+      qty_added:    qtyAdded,
+      qty_before:   qtyBefore,
+      qty_after:    qtyAfter,
+      scanned_by:   user?.fullname,
+      note:         form.note.trim(),
+      scanned_at:   new Date().toISOString(),
+    }])
+
+  setSaved(true)
+  setSaving(false)
+  setTimeout(() => navigate(`/items/${lookup.existing.id}`), 1200)
+  return
+}
 
     // ไม่มี record เดิม → สร้างใหม่
     const { data, error: err } = await supabase
@@ -335,9 +361,13 @@ export default function ScanPage() {
                   <button type="button" onClick={() => set('quantity', form.quantity + 1)}
                     className="px-3 py-2.5 text-white hover:bg-white/10 transition font-mono text-lg leading-none">+</button>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl px-3 flex items-center text-xs text-slate-400 min-w-13 justify-center">
-                  {form.unit}
-                </div>  {/* ✅ Ln 338 fixed: min-w-[52px] → min-w-13 */}
+                <select
+  value={form.unit}
+  onChange={e => set('unit', e.target.value)}
+  className="bg-slate-900 border border-white/10 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 min-w-20"
+>
+  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+</select>
               </div>
               {lookup?.status === 'found' && (
                 <p className="text-xs text-amber-400 mt-1.5">

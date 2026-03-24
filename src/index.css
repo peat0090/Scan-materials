@@ -1,6 +1,5 @@
-@import "tailwindcss";
-
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
 
 * {
   font-family: 'IBM Plex Sans Thai', sans-serif;
@@ -10,7 +9,6 @@
   font-family: 'IBM Plex Mono', monospace;
 }
 
-/* QR scan pulse animation */
 @keyframes scan-line {
   0%   { top: 0%; opacity: 1; }
   50%  { opacity: 0.6; }

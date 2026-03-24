@@ -4,10 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import Navbar from '../components/Navbar'
 
-const deptColor = {
+const sectionColor = {                          // ✅ เปลี่ยนชื่อให้ตรงกับ field จริง
   'Hydraulic':   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   'Mechatronic': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
   'Mechanic':    'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  'IT':          'bg-green-500/10 text-green-400 border-green-500/20',
+  'Logistics':   'bg-pink-500/10 text-pink-400 border-pink-500/20',
 }
 
 const formatDate = (d) => {
@@ -26,17 +28,22 @@ export default function DashboardPage() {
   const [search, setSearch]   = useState('')
 
   useEffect(() => {
-    const fetch = async () => {
+    const load = async () => {
       setLoading(true)
-      const { data } = await supabase
-        .from('scan_records')
-        .select('*')
-        .order('scanned_at', { ascending: false })
-        .limit(200)
-      setRecords(data || [])
-      setLoading(false)
+      try {
+        const { data } = await supabase
+          .from('scan_records')
+          .select('*')
+          .order('scanned_at', { ascending: false })
+          .limit(200)
+        setRecords(data || [])
+      } catch (err) {
+        console.error('Dashboard load error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-    fetch()
+    load()
   }, [])
 
   const now        = new Date()
@@ -72,7 +79,7 @@ export default function DashboardPage() {
           {[
             { label: 'สแกนวันนี้',   value: todayCount,  icon: '📦', color: 'text-blue-400' },
             { label: 'สแกน 7 วัน',   value: weekCount,   icon: '📅', color: 'text-purple-400' },
-            { label: 'รวมจำนวนชิ้น', value: totalQty,    icon: '🔢', color: 'text-amber-400' },
+            { label: 'รวมจำนวนชิ้น', value: totalQty.toLocaleString(), icon: '🔢', color: 'text-amber-400' },
             { label: 'สินค้าไม่ซ้ำ', value: uniqueItems, icon: '🏷️', color: 'text-green-400' },
           ].map((s, i) => (
             <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4">
@@ -112,7 +119,7 @@ export default function DashboardPage() {
           ) : (
             <div className="divide-y divide-white/5">
               {filtered.slice(0, 50).map((r, i) => {
-                const dept = deptColor[r.department] || 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                const sectionCls = sectionColor[r.section] || 'bg-slate-500/10 text-slate-400 border-slate-500/20'  // ✅ ใช้ r.section
                 return (
                   <Link
                     to={`/items/${r.id}`}
@@ -129,9 +136,9 @@ export default function DashboardPage() {
                       <p className="text-xs text-slate-500 font-mono">{r.product_id} · {r.receiver || r.scanned_by}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {r.department && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${dept} hidden sm:inline`}>
-                          {r.department}
+                      {r.section && (                                         // ✅ ใช้ r.section
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${sectionCls} hidden sm:inline`}>
+                          {r.section}
                         </span>
                       )}
                       <span className="text-xs text-white/80 bg-white/10 px-2 py-0.5 rounded-full font-mono">

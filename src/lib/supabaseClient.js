@@ -1,7 +1,9 @@
 // src/lib/supabaseClient.js
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL  = 'https://agvqbdqyfixfwrbkijlx.supabase.co'
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFndnFiZHF5Zml4ZndyYmtpamx4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI0MTYzMiwiZXhwIjoyMDg5ODE3NjMyfQ.u-OYcA7Z46XUKz-uNfmzaPxXWbcYfyP2v0juExpUwSw'
+// ✅ ใช้ ANON key เท่านั้น (public key — ปลอดภัยใน client)
+// ❌ ห้ามใช้ service_role key ใน frontend เด็ดขาด
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)

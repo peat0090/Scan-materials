@@ -13,6 +13,15 @@ const formatDate = (d) => {
   })
 }
 
+const formatShort = (d) => {
+  if (!d) return '-'
+  return new Date(d).toLocaleString('th-TH', {
+    day: 'numeric', month: 'short', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Bangkok',
+  })
+}
+
 const Row = ({ label, value }) => (
   <div className="flex items-start justify-between py-3 border-b border-white/5">
     <span className="text-xs text-slate-500 uppercase tracking-wider w-28 shrink-0">{label}</span>
@@ -21,31 +30,62 @@ const Row = ({ label, value }) => (
 )
 
 export default function ItemDetailPage() {
-  const { id }    = useParams()
-  const { can }   = useAuth()
-  const navigate  = useNavigate()
-  const [record, setRecord] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { id }   = useParams()
+  const { can }  = useAuth()
+  const navigate = useNavigate()
+
+  const [record,   setRecord]   = useState(null)
+  const [logs,     setLogs]     = useState([])
+  const [loading,  setLoading]  = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')  // ✅ เพิ่ม error state
 
   useEffect(() => {
-    const fetch = async () => {
+    const load = async () => {
       setLoading(true)
-      const { data } = await supabase
-        .from('scan_records')
-        .select('*')
-        .eq('id', id)
-        .single()
-      setRecord(data)
-      setLoading(false)
+      try {                                            // ✅ try/finally ป้องกัน loading ค้าง
+        const { data: rec, error } = await supabase
+          .from('scan_records')
+          .select('*')
+          .eq('id', id)
+          .single()
+
+        if (error) throw error
+        setRecord(rec)
+
+        if (rec) {
+          const { data: logsData } = await supabase
+            .from('scan_logs')
+            .select('*')
+            .eq('record_id', id)
+            .order('scanned_at', { ascending: false })
+          setLogs(logsData || [])
+        }
+      } catch (err) {
+        console.error('ItemDetailPage load error:', err)
+        setRecord(null)
+      } finally {
+        setLoading(false)                             // ✅ ทำงานเสมอ ไม่ค้าง
+      }
     }
-    fetch()
+    load()
   }, [id])
 
   const handleDelete = async () => {
     if (!window.confirm('ยืนยันการลบรายการนี้?')) return
     setDeleting(true)
-    await supabase.from('scan_records').delete().eq('id', id)
+    setDeleteError('')
+
+    const { error } = await supabase                 // ✅ เช็ค error ก่อน navigate
+      .from('scan_records')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      setDeleteError('ลบไม่สำเร็จ: ' + error.message)
+      setDeleting(false)
+      return
+    }
     navigate('/history')
   }
 
@@ -77,17 +117,19 @@ export default function ItemDetailPage() {
     )
   }
 
+  const unit = record.unit || 'ชิ้น'
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <Navbar />
 
       <div className="max-w-lg mx-auto px-4 py-6 fade-in">
-        {/* Back */}
+
         <Link to="/history" className="text-xs text-slate-500 hover:text-white flex items-center gap-1 mb-5 transition">
           ← ประวัติการสแกน
         </Link>
 
-        {/* Header card */}
+        {/* Header */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between mb-3">
             <div>
@@ -97,28 +139,79 @@ export default function ItemDetailPage() {
                 <p className="text-slate-400 font-mono text-sm mt-0.5">{record.product_id}</p>
               )}
             </div>
-            <div className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-center">
-              <p className="text-2xl font-bold font-mono">×{record.quantity}</p>
-              <p className="text-xs text-slate-500">จำนวน</p>
+            <div className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-center min-w-[72px]">
+              <p className="text-2xl font-bold font-mono">{record.quantity}</p>
+              <p className="text-xs text-slate-500">{unit}</p>
             </div>
           </div>
         </div>
 
         {/* Detail rows */}
         <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-1 mb-4">
-          <Row label="แผนก"     value={record.section} />
-          <Row label="ฝ่าย"     value={record.division} />
-          <Row label="ผู้รับ"    value={record.receiver} />
-          <Row label="ผู้สแกน"  value={record.scanned_by} />
-          <Row label="เวลาสแกน" value={formatDate(record.scanned_at)} />
+          <Row label="แผนก"           value={record.section} />
+          <Row label="ฝ่าย"           value={record.division} />
+          <Row label="ผู้รับ"          value={record.receiver} />
+          <Row label="ผู้สแกนล่าสุด"  value={record.scanned_by} />
+          <Row label="อัปเดตล่าสุด"   value={formatDate(record.scanned_at)} />
           {record.note && <Row label="หมายเหตุ" value={record.note} />}
+        </div>
+
+        {/* Scan logs */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mb-4">
+          <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-300 uppercase tracking-widest">
+              ประวัติการเพิ่ม
+            </p>
+            <span className="text-xs text-slate-500">{logs.length} ครั้ง</span>
+          </div>
+
+          {logs.length === 0 ? (
+            <div className="px-5 py-6 text-center">
+              <p className="text-xs text-slate-600">ยังไม่มีประวัติการเพิ่ม</p>
+              <p className="text-xs text-slate-700 mt-1">log จะบันทึกเมื่อมีการสแกนซ้ำครั้งต่อไป</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {logs.map((log, i) => (
+                <div key={log.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center justify-center shrink-0">
+                      <span className="text-green-400 text-xs font-mono font-bold">+{log.qty_added}</span>
+                    </div>
+                    <div>
+                      <p className="text-xs text-white font-medium">
+                        {log.qty_before}
+                        <span className="text-slate-500 mx-1">→</span>
+                        <span className="text-green-400">{log.qty_after}</span>
+                        <span className="text-slate-500 ml-1">{unit}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {log.scanned_by} · {formatShort(log.scanned_at)}
+                      </p>
+                      {log.note && (
+                        <p className="text-xs text-slate-600 mt-0.5 italic">{log.note}</p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs text-slate-700 shrink-0">#{logs.length - i}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Record ID */}
         <div className="bg-white/3 border border-white/5 rounded-xl px-4 py-3 mb-6">
           <p className="text-xs text-slate-600 mb-0.5">Record ID</p>
-          <p className="text-xs text-slate-400 font-mono">{record.id}</p>
+          <p className="text-xs text-slate-400 font-mono break-all">{record.id}</p>
         </div>
+
+        {/* Delete error */}
+        {deleteError && (                             // ✅ แสดง error ลบ
+          <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+            ⚠️ {deleteError}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3">
@@ -138,6 +231,7 @@ export default function ItemDetailPage() {
             </button>
           )}
         </div>
+
       </div>
     </div>
   )
