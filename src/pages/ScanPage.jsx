@@ -23,7 +23,7 @@ function QRScanner({ onScan }) {
     script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'
     script.onload = () => { jsQRRef.current = window.jsQR; setLoaded(true) }
     document.head.appendChild(script)
-    return () => { try { document.head.removeChild(script) } catch (_) {} }
+    return () => { try { document.head.removeChild(script) } catch { /* cleanup */ } }  // ✅ Ln 26 fixed
   }, [])
 
   const startCamera = async () => {
@@ -180,7 +180,7 @@ export default function ScanPage() {
         product_name: obj.name || prev.product_name,
         quantity:     obj.qty  || 1,
       }))
-    } catch (_) {}
+    } catch { /* not JSON, use raw value */ }  // ✅ Ln 183 fixed
     await lookupBarcode(barcode)
   }
 
@@ -335,9 +335,9 @@ export default function ScanPage() {
                   <button type="button" onClick={() => set('quantity', form.quantity + 1)}
                     className="px-3 py-2.5 text-white hover:bg-white/10 transition font-mono text-lg leading-none">+</button>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl px-3 flex items-center text-xs text-slate-400 min-w-[52px] justify-center">
+                <div className="bg-white/5 border border-white/10 rounded-xl px-3 flex items-center text-xs text-slate-400 min-w-13 justify-center">
                   {form.unit}
-                </div>
+                </div>  {/* ✅ Ln 338 fixed: min-w-[52px] → min-w-13 */}
               </div>
               {lookup?.status === 'found' && (
                 <p className="text-xs text-amber-400 mt-1.5">
