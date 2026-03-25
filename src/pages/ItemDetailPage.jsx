@@ -51,6 +51,7 @@ function ImageGallery({ productId, canUpload, uploaderName }) {
     setImages(data || [])
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadImages() }, [productId])
 
   // ── Upload core ──
@@ -90,6 +91,7 @@ function ImageGallery({ productId, canUpload, uploaderName }) {
     } finally {
       setUploading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, uploaderName, images.length])
 
   // ── File input change ──
@@ -389,7 +391,7 @@ export default function ItemDetailPage() {
               <h2 className="text-xl font-bold">{record.product_name || record.product_id}</h2>
               {record.product_name && <p className="text-slate-400 font-mono text-sm mt-0.5">{record.product_id}</p>}
             </div>
-            <div className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-center min-w-[72px]">
+            <div className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 text-center min-w-18">
               <p className="text-2xl font-bold font-mono">{record.quantity}</p>
               <p className="text-xs text-slate-500">{unit}</p>
             </div>
