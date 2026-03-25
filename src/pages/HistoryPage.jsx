@@ -194,7 +194,7 @@ export default function HistoryPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="ค้นหา..."
-            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 flex-1 min-w-[160px]"
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 flex-1 min-w-10"
           />
           <select
             value={section}
@@ -278,10 +278,10 @@ export default function HistoryPage() {
                             {r.product_id}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-white max-w-[140px] truncate">{r.product_name || '-'}</td>
+                        <td className="px-4 py-3 text-white max-w-8.75 truncate">{r.product_name || '-'}</td>
                         <td className="px-4 py-3 font-mono text-center">×{r.quantity}</td>
                         <td className="px-4 py-3 text-slate-300">{r.section || '-'}</td>
-                        <td className="px-4 py-3 text-slate-300 max-w-[120px] truncate">{r.division || '-'}</td>
+                        <td className="px-4 py-3 text-slate-300 max-w-7.5 truncate">{r.division || '-'}</td>
                         <td className="px-4 py-3 text-slate-300">{r.receiver || '-'}</td>
                         <td className="px-4 py-3 text-slate-400">{r.scanned_by}</td>
                         <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDate(r.scanned_at)}</td>

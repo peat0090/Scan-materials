@@ -35,7 +35,7 @@ export default function WithdrawHistoryPage() {
     const fetchData = async () => {
       setLoading(true)
       let q = supabase
-        .from('withdraw_records')
+        .from('scan_records')
         .select('*')
         .order('withdrawn_at', { ascending: false })
         .limit(500)
@@ -76,7 +76,7 @@ export default function WithdrawHistoryPage() {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a'); a.href = url
-    a.download = `withdraw_records_${new Date().toISOString().slice(0,10)}.csv`
+    a.download = `scan_records_${new Date().toISOString().slice(0,10)}.csv`
     a.click()
   }
 
@@ -120,7 +120,7 @@ export default function WithdrawHistoryPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="ค้นหาสินค้า / ผู้เบิก / วัตถุประสงค์..."
-            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 flex-1 min-w-[180px]"
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 flex-1 min-w-45"
           />
           <select
             value={section}
@@ -181,7 +181,7 @@ export default function WithdrawHistoryPage() {
                   return (
                     <tr key={r.id} className="border-t border-white/5 hover:bg-white/3 transition">
                       <td className="px-4 py-3 font-mono text-red-400 whitespace-nowrap">{r.product_id}</td>
-                      <td className="px-4 py-3 text-white max-w-[140px] truncate">{r.product_name || '-'}</td>
+                      <td className="px-4 py-3 text-white max-w-35 truncate">{r.product_name || '-'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="font-mono font-bold text-red-400">−{r.quantity}</span>
                         <span className="text-slate-500 ml-1">{r.unit || 'ชิ้น'}</span>
@@ -191,9 +191,9 @@ export default function WithdrawHistoryPage() {
                           <span className={`text-xs px-2 py-0.5 rounded-full border ${secCls}`}>{r.section}</span>
                         ) : '-'}
                       </td>
-                      <td className="px-4 py-3 text-slate-300 max-w-[120px] truncate">{r.division || '-'}</td>
+                      <td className="px-4 py-3 text-slate-300 max-w-30 truncate">{r.division || '-'}</td>
                       <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{r.requester || '-'}</td>
-                      <td className="px-4 py-3 text-slate-400 max-w-[160px] truncate">{r.purpose || '-'}</td>
+                      <td className="px-4 py-3 text-slate-400 max-w-40 truncate">{r.purpose || '-'}</td>
                       <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{r.withdrawn_by}</td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDate(r.withdrawn_at)}</td>
                     </tr>

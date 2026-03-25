@@ -144,7 +144,7 @@ export default function WithdrawPage() {
 
       // รวม qty ที่เบิกไปแล้ว (ถ้าตารางยังไม่มีให้ถือว่า 0)
       const { data: withdraws } = await supabase
-        .from('withdraw_records')
+        .from('scan_records')
         .select('quantity')
         .eq('product_id', barcode)
 
@@ -199,7 +199,7 @@ export default function WithdrawPage() {
     setSaving(true); setError('')
     try {
       const { error: dbErr } = await supabase
-        .from('withdraw_records')
+        .from('scan_records')
         .insert({
           product_id:   form.product_id,
           product_name: form.product_name,
