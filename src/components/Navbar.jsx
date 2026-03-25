@@ -13,8 +13,9 @@ export default function Navbar() {
   const location = useLocation()
 
   const navLinks = [
-    { to: '/',        label: 'ภาพรวม',     icon: '◻' },
-    { to: '/history', label: 'ประวัติสแกน', icon: '◫' },
+    { to: '/',                 label: 'ภาพรวม',      icon: '◻' },
+    { to: '/history',          label: 'ประวัติสแกน',  icon: '◫' },
+    { to: '/withdraw/history', label: 'ประวัติเบิก',  icon: '📋' },
   ]
 
   return (
@@ -47,6 +48,8 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-3">
+
+        {/* ปุ่มสแกน QR */}
         {can('scan') && (
           <Link
             to="/scan"
@@ -57,6 +60,21 @@ export default function Navbar() {
             </svg>
             <span className="hidden sm:inline">สแกน QR</span>
             <span className="sm:hidden">สแกน</span>
+          </Link>
+        )}
+        
+                {/* ปุ่มเบิกใช้ */}
+        {can('scan') && (
+          <Link
+            to="/withdraw"
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg active:scale-95 transition border ${
+              location.pathname === '/withdraw'
+                ? 'bg-red-500/20 border-red-500/40 text-red-300'
+                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-300'
+            }`}
+          >
+            <span>📤</span>
+            <span className="hidden sm:inline">เบิกใช้</span>
           </Link>
         )}
 

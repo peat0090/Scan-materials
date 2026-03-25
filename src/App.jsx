@@ -5,6 +5,9 @@ import DashboardPage  from './pages/DashboardPage'
 import ScanPage       from './pages/ScanPage'
 import HistoryPage    from './pages/HistoryPage'
 import ItemDetailPage from './pages/ItemDetailPage'
+import WithdrawPage        from './pages/WithdrawPage'
+import WithdrawHistoryPage from './pages/WithdrawHistoryPage'
+
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -27,6 +30,8 @@ function App() {
         <Route path="/history"     element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
         <Route path="/items/:id"   element={<PrivateRoute><ItemDetailPage /></PrivateRoute>} />
         <Route path="*"            element={<Navigate to="/" />} />
+        <Route path="/withdraw"         element={<PrivateRoute><WithdrawPage /></PrivateRoute>} />
+        <Route path="/withdraw/history" element={<PrivateRoute><WithdrawHistoryPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )
