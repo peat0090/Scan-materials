@@ -62,9 +62,8 @@ function ImageGallery({ productId, canUpload, uploaderName }) {
     setUploading(true)
     setUploadErr('')
     try {
-      const ext       = file.name?.split('.').pop() || file.type.split('/')[1] || 'png'
-      const safeId    = productId.replace(/[^a-zA-Z0-9._\-]/g, '_')
-      const fileName  = `${safeId}/${Date.now()}.${ext}`
+      const ext      = file.name?.split('.').pop() || file.type.split('/')[1] || 'png'
+      const fileName = `${productId}/${Date.now()}.${ext}`
 
       const { error: storageErr } = await supabase.storage
         .from('product-images')
