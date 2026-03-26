@@ -7,7 +7,7 @@ const SECTIONS  = ['Hydraulic', 'Mechatronic', 'Mechanic', 'IT', 'Admin', 'Logis
 const DIVISIONS = ['ฝ่ายซ่อมบำรุง', 'ฝ่ายผลิต', 'ฝ่ายคลังสินค้า', 'ฝ่ายจัดซื้อ', 'ฝ่าย IT', 'ฝ่ายบริหาร']
 const UNITS     = ['ชิ้น', 'อัน', 'ตัว', 'เส้น', 'ม้วน', 'กล่อง', 'ถุง', 'แพ็ค', 'โหล', 'กิโลกรัม', 'กรัม', 'ลิตร', 'มิลลิลิตร', 'เมตร', 'ฟุต']
 
-// ── QR Scanner (ใช้โค้ดเดิมจาก ScanPage) ──────────────────────
+// ── QR Scanner ─────────────────────────────────────────────────
 function QRScanner({ onScan }) {
   const videoRef    = useRef(null)
   const canvasRef   = useRef(null)
@@ -129,47 +129,36 @@ export default function WithdrawPage() {
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
-  // ── ค้นหาสต็อกสินค้า ──
+  // ── ค้นหาสินค้า: ดึง stock_quantity จาก products โดยตรง ──────
   const lookupBarcode = useCallback(async (barcode) => {
     if (!barcode) return
     setLooking(true)
     setLookup(null)
 
     try {
-      // รวม qty ทั้งหมดจาก scan_records
-      const { data: recs } = await supabase
-        .from('scan_records')
-        .select('quantity, unit, product_name, section, division')
-        .eq('product_id', barcode)
-
-      // รวม qty ที่เบิกไปแล้ว (ถ้าตารางยังไม่มีให้ถือว่า 0)
-      const { data: withdraws } = await supabase
-        .from('scan_records')
-        .select('quantity')
-        .eq('product_id', barcode)
-
-      const totalIn  = (recs || []).reduce((s, r) => s + (r.quantity || 0), 0)
-      const totalOut = (withdraws || []).reduce((s, r) => s + (r.quantity || 0), 0)
-      const stock    = totalIn - totalOut
-      const lastRec  = (recs || [])[0]
-
-      // ดึงข้อมูลจาก products table (maybeSingle = ไม่ error ถ้าไม่พบ)
       const { data: product } = await supabase
-        .from('products').select('*').eq('barcode', barcode).maybeSingle()
+        .from('products')
+        .select('*')
+        .eq('barcode', barcode)
+        .maybeSingle()
 
       setForm(prev => ({
         ...prev,
         product_id:   barcode,
-        product_name: product?.name     || lastRec?.product_name || prev.product_name,
-        section:      product?.section  || lastRec?.section      || prev.section,
-        division:     product?.division || lastRec?.division     || prev.division,
-        unit:         product?.unit     || lastRec?.unit         || 'ชิ้น',
+        product_name: product?.name     || prev.product_name,
+        section:      product?.section  || prev.section,
+        division:     product?.division || prev.division,
+        unit:         product?.unit     || 'ชิ้น',
         quantity:     1,
-        requester:    user?.fullname || '',
+        requester:    prev.requester || user?.fullname || '',
       }))
 
-      // found = มีใน scan_records แม้ไม่มีใน products table
-      setLookup({ stock, product, found: totalIn > 0 })
+      // stock มาจาก products.stock_quantity เท่านั้น
+      setLookup({
+        product,
+        stock: product?.stock_quantity ?? 0,
+        found: !!product,
+      })
     } catch (err) {
       console.error('lookupBarcode error:', err)
       setLookup({ stock: 0, product: null, found: false })
@@ -183,7 +172,8 @@ export default function WithdrawPage() {
     lookupBarcode(value)
   }
 
-  // ── Submit ──
+  // ── Submit: INSERT ใน withdraw_records ──────────────────────
+  // Trigger fn_stock_on_withdraw จะหัก products.stock_quantity อัตโนมัติ
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.product_id) return setError('กรุณากรอก Barcode / ID สินค้า')
@@ -191,7 +181,7 @@ export default function WithdrawPage() {
     const qty = Number(form.quantity)
     if (qty <= 0) return setError('จำนวนต้องมากกว่า 0')
 
-    // ตรวจสต็อก
+    // ตรวจสต็อกจาก lookup (ซึ่งดึงจาก products.stock_quantity)
     if (lookup && qty > lookup.stock) {
       return setError(`สต็อกไม่พอ — มีอยู่ ${lookup.stock} ${form.unit} แต่ขอเบิก ${qty} ${form.unit}`)
     }
@@ -199,7 +189,7 @@ export default function WithdrawPage() {
     setSaving(true); setError('')
     try {
       const { error: dbErr } = await supabase
-        .from('scan_records')
+        .from('withdraw_records')   // ← ถูกต้อง: insert ใน withdraw_records
         .insert({
           product_id:   form.product_id,
           product_name: form.product_name,
@@ -211,6 +201,7 @@ export default function WithdrawPage() {
           purpose:      form.purpose,
           note:         form.note,
           withdrawn_by: user?.fullname,
+          withdrawn_at: new Date().toISOString(),
         })
       if (dbErr) throw dbErr
 
@@ -229,6 +220,7 @@ export default function WithdrawPage() {
 
   // ── Saved overlay ──
   if (saved) {
+    const stockAfter = (lookup?.stock ?? 0) - Number(form.quantity)
     return (
       <div className="min-h-screen bg-slate-950 text-white">
         <Navbar />
@@ -241,11 +233,11 @@ export default function WithdrawPage() {
             เบิก <span className="text-white font-mono font-bold">{form.quantity} {form.unit}</span>
             <br />{form.product_name || form.product_id}
           </p>
-          {lookup && (
-            <p className="text-xs text-slate-600">
-              สต็อกคงเหลือ: {lookup.stock - Number(form.quantity)} {form.unit}
-            </p>
-          )}
+          <p className="text-xs text-slate-600">
+            สต็อกคงเหลือ: <span className={`font-mono font-bold ${stockAfter <= 0 ? 'text-red-400' : stockAfter <= 5 ? 'text-amber-400' : 'text-white'}`}>
+              {stockAfter}
+            </span> {form.unit}
+          </p>
           <button
             onClick={() => { setSaved(false); setForm(EMPTY_FORM); setLookup(null) }}
             className="mt-2 text-xs text-slate-500 hover:text-white transition"
@@ -256,6 +248,10 @@ export default function WithdrawPage() {
       </div>
     )
   }
+
+  const stockAfterWithdraw = lookup?.found
+    ? lookup.stock - Number(form.quantity)
+    : null
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -376,10 +372,11 @@ export default function WithdrawPage() {
                   {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
-              {lookup?.found && lookup.stock > 0 && (
-                <p className={`text-xs mt-1.5 ${Number(form.quantity) > lookup.stock ? 'text-red-400' : 'text-slate-500'}`}>
-                  คงเหลือหลังเบิก: {lookup.stock - Number(form.quantity)} {form.unit}
-                  {Number(form.quantity) > lookup.stock && ' ⚠️ เกินสต็อก'}
+              {/* แสดง stock หลังเบิก */}
+              {stockAfterWithdraw != null && (
+                <p className={`text-xs mt-1.5 ${stockAfterWithdraw < 0 ? 'text-red-400' : stockAfterWithdraw <= 5 ? 'text-amber-400' : 'text-slate-500'}`}>
+                  stock หลังเบิก: <span className="font-mono font-bold">{stockAfterWithdraw}</span> {form.unit}
+                  {stockAfterWithdraw < 0 && ' ⚠️ เกินสต็อก'}
                 </p>
               )}
             </div>

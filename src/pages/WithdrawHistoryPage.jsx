@@ -35,7 +35,7 @@ export default function WithdrawHistoryPage() {
     const fetchData = async () => {
       setLoading(true)
       let q = supabase
-        .from('scan_records')
+        .from('withdraw_records')
         .select('*')
         .order('withdrawn_at', { ascending: false })
         .limit(500)

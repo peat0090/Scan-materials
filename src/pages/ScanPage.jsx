@@ -24,7 +24,7 @@ function QRScanner({ onScan }) {
     script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'
     script.onload = () => { jsQRRef.current = window.jsQR; setLoaded(true) }
     document.head.appendChild(script)
-    return () => { try { document.head.removeChild(script) } catch { /* cleanup */ } }  // ✅ Ln 26 fixed
+    return () => { try { document.head.removeChild(script) } catch { /* cleanup */ } }
   }, [])
 
   const startCamera = async () => {
@@ -125,31 +125,22 @@ export default function ScanPage() {
   const [saving, setSaving]   = useState(false)
   const [saved,  setSaved]    = useState(false)
   const [error,  setError]    = useState('')
-  const [lookup, setLookup]   = useState(null)   // { status: 'found'|'new', existingRecord }
+  const [lookup, setLookup]   = useState(null)   // { currentStock, product }
   const [looking, setLooking] = useState(false)
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
-  // ค้นหาสินค้าและ record ล่าสุดจาก barcode
+  // ── ค้นหาสินค้าจาก barcode ดึง stock จาก products โดยตรง ──
   const lookupBarcode = async (barcode) => {
     if (!barcode) return
     setLooking(true)
     setLookup(null)
 
-    // 1. ดึงชื่อสินค้าจาก products table
+    // ดึงข้อมูลสินค้าและ stock_quantity จาก products
     const { data: product } = await supabase
       .from('products')
       .select('*')
       .eq('barcode', barcode)
-      .single()
-
-    // 2. ดึง scan_record ล่าสุดของ barcode นี้
-    const { data: existing } = await supabase
-      .from('scan_records')
-      .select('*')
-      .eq('product_id', barcode)
-      .order('scanned_at', { ascending: false })
-      .limit(1)
       .maybeSingle()
 
     setForm(prev => ({
@@ -163,15 +154,13 @@ export default function ScanPage() {
     }))
 
     setLookup({
-      status:   existing ? 'found' : 'new',
-      existing,
       product,
+      currentStock: product?.stock_quantity ?? null, // null = ไม่พบในระบบ
     })
     setLooking(false)
   }
 
   const handleQRScan = async (raw) => {
-    // รองรับทั้ง JSON และ plain barcode
     let barcode = raw
     try {
       const obj = JSON.parse(raw)
@@ -181,67 +170,28 @@ export default function ScanPage() {
         product_name: obj.name || prev.product_name,
         quantity:     obj.qty  || 1,
       }))
-    } catch { /* not JSON, use raw value */ }  // ✅ Ln 183 fixed
+    } catch { /* not JSON, use raw value */ }
     await lookupBarcode(barcode)
   }
 
+  // ── Submit: INSERT scan_record ใหม่ทุกครั้ง ──────────────────
+  // Trigger ใน DB จะ +qty เข้า products.stock_quantity อัตโนมัติ
+  // ไม่ต้อง UPDATE scan_records เดิมอีกต่อไป
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.product_id.trim()) { setError('กรุณากรอก ID สินค้า'); return }
     setSaving(true); setError('')
 
-    // ถ้ามี record เดิม → บวกจำนวนเพิ่ม
-    if (lookup?.existing) {
-  const qtyBefore = lookup.existing.quantity || 0
-  const qtyAdded  = Number(form.quantity)
-  const qtyAfter  = qtyBefore + qtyAdded
+    const qty = Number(form.quantity) || 1
 
-  // 1. อัปเดต record เดิม
-  const { error: errUpdate } = await supabase
-    .from('scan_records')
-    .update({
-      quantity:   qtyAfter,
-      scanned_by: user?.fullname,
-      scanned_at: new Date().toISOString(),
-      receiver:   form.receiver.trim() || lookup.existing.receiver || user?.fullname,
-      note:       form.note.trim() || lookup.existing.note,
-    })
-    .eq('id', lookup.existing.id)
-
-  if (errUpdate) {
-    setError('บันทึกไม่สำเร็จ: ' + errUpdate.message)
-    setSaving(false)
-    return
-  }
-
-  // 2. บันทึก log ใหม่
-  await supabase
-    .from('scan_logs')
-    .insert([{
-      record_id:    lookup.existing.id,
-      product_id:   form.product_id,
-      product_name: form.product_name,
-      qty_added:    qtyAdded,
-      qty_before:   qtyBefore,
-      qty_after:    qtyAfter,
-      scanned_by:   user?.fullname,
-      note:         form.note.trim(),
-      scanned_at:   new Date().toISOString(),
-    }])
-
-  setSaved(true)
-  setSaving(false)
-  setTimeout(() => navigate(`/items/${lookup.existing.id}`), 1200)
-  return
-}
-
-    // ไม่มี record เดิม → สร้างใหม่
+    // INSERT scan_record ใหม่ → trigger fn_stock_on_scan จะบวกเข้า products
     const { data, error: err } = await supabase
       .from('scan_records')
       .insert([{
         product_id:    form.product_id.trim(),
         product_name:  form.product_name.trim(),
-        quantity:      Number(form.quantity) || 1,
+        quantity:      qty,
+        unit:          form.unit,
         section:       form.section,
         division:      form.division,
         receiver:      form.receiver.trim() || user?.fullname,
@@ -253,6 +203,7 @@ export default function ScanPage() {
       .select().single()
 
     if (err) { setError('บันทึกไม่สำเร็จ: ' + err.message); setSaving(false); return }
+
     setSaved(true); setSaving(false)
     setTimeout(() => navigate(`/items/${data.id}`), 1200)
   }
@@ -270,6 +221,10 @@ export default function ScanPage() {
       </div>
     </div>
   )
+
+  const stockAfter = lookup?.currentStock != null
+    ? lookup.currentStock + Number(form.quantity)
+    : null
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -293,25 +248,26 @@ export default function ScanPage() {
         )}
         {lookup && !looking && (
           <div className={`mb-4 px-4 py-3 rounded-xl border text-sm flex items-start gap-3 ${
-            lookup.status === 'found'
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-              : 'bg-green-500/10 border-green-500/30 text-green-300'
+            lookup.product
+              ? 'bg-green-500/10 border-green-500/30 text-green-300'
+              : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
           }`}>
-            <span className="text-lg mt-0.5">{lookup.status === 'found' ? '⚡' : '✨'}</span>
+            <span className="text-lg mt-0.5">{lookup.product ? '✅' : '✨'}</span>
             <div>
-              {lookup.status === 'found' ? (
+              {lookup.product ? (
                 <>
-                  <p className="font-medium">พบสินค้าเดิม — จะบวกจำนวนเข้า record ล่าสุด</p>
+                  <p className="font-medium">พบสินค้า: {lookup.product.name}</p>
                   <p className="text-xs mt-0.5 opacity-75">
-                    ปัจจุบัน: {lookup.existing.quantity} {form.unit} · สแกนโดย {lookup.existing.scanned_by}
+                    สต็อกปัจจุบัน: <span className="font-mono font-bold">{lookup.currentStock}</span> {form.unit}
+                    {stockAfter != null && (
+                      <span className="ml-2">→ หลังเพิ่ม: <span className="font-mono font-bold text-green-400">{stockAfter}</span></span>
+                    )}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="font-medium">
-                    {lookup.product ? `พบในระบบ: ${lookup.product.name}` : 'สินค้าใหม่ — จะสร้าง record ใหม่'}
-                  </p>
-                  {!lookup.product && <p className="text-xs mt-0.5 opacity-75">ไม่พบ barcode นี้ในตาราง products</p>}
+                  <p className="font-medium">สินค้าใหม่ — ยังไม่มีในตาราง products</p>
+                  <p className="text-xs mt-0.5 opacity-75">จะสร้าง scan record และบวก stock อัตโนมัติ</p>
                 </>
               )}
             </div>
@@ -349,9 +305,7 @@ export default function ScanPage() {
 
             {/* จำนวน + หน่วย */}
             <div>
-              <label className="text-xs text-slate-400 uppercase tracking-widest block mb-1.5">
-                จำนวนที่จะ{lookup?.status === 'found' ? 'บวกเพิ่ม' : 'บันทึก'}
-              </label>
+              <label className="text-xs text-slate-400 uppercase tracking-widest block mb-1.5">จำนวนที่รับเข้า</label>
               <div className="flex gap-2">
                 <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden flex-1">
                   <button type="button" onClick={() => set('quantity', Math.max(1, form.quantity - 1))}
@@ -361,17 +315,15 @@ export default function ScanPage() {
                   <button type="button" onClick={() => set('quantity', form.quantity + 1)}
                     className="px-3 py-2.5 text-white hover:bg-white/10 transition font-mono text-lg leading-none">+</button>
                 </div>
-                <select
-  value={form.unit}
-  onChange={e => set('unit', e.target.value)}
-  className="bg-slate-900 border border-white/10 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 min-w-20"
->
-  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-</select>
+                <select value={form.unit} onChange={e => set('unit', e.target.value)}
+                  className="bg-slate-900 border border-white/10 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20 min-w-20">
+                  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
               </div>
-              {lookup?.status === 'found' && (
-                <p className="text-xs text-amber-400 mt-1.5">
-                  รวมหลังบวก: {(lookup.existing.quantity || 0) + Number(form.quantity)} {form.unit}
+              {/* แสดง stock หลังรับเข้า */}
+              {stockAfter != null && (
+                <p className="text-xs text-green-400 mt-1.5">
+                  stock หลังรับเข้า: <span className="font-mono font-bold">{stockAfter}</span> {form.unit}
                 </p>
               )}
             </div>
@@ -432,7 +384,7 @@ export default function ScanPage() {
 
           <button type="submit" disabled={saving}
             className="w-full bg-white text-slate-900 font-semibold rounded-xl py-3 text-sm hover:bg-slate-100 active:scale-95 transition disabled:opacity-50">
-            {saving ? 'กำลังบันทึก...' : lookup?.status === 'found' ? `⚡ บวกเพิ่ม ${form.quantity} ${form.unit}` : '💾 บันทึกสินค้าใหม่'}
+            {saving ? 'กำลังบันทึก...' : `📥 รับเข้า ${form.quantity} ${form.unit}`}
           </button>
         </form>
       </div>
