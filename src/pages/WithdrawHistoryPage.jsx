@@ -88,23 +88,23 @@ export default function WithdrawHistoryPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-lg font-bold">ประวัติการเบิกสินค้า</h2>
+            <h2 className="text-lg font-bold">ประวัติการเบิก</h2>
             <p className="text-slate-500 text-sm">{filtered.length} รายการ</p>
           </div>
           <button
             onClick={exportCSV}
             className="flex items-center gap-1.5 text-xs bg-white/10 border border-white/10 text-white px-3 py-2 rounded-lg hover:bg-white/15 transition"
           >
-            📥 Export CSV
+             Export CSV
           </button>
         </div>
 
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: 'เบิกวันนี้',    value: todayWithdraw,           icon: '📤', color: 'text-red-400' },
-            { label: 'รวมชิ้นที่เบิก', value: totalQty.toLocaleString(), icon: '🔢', color: 'text-amber-400' },
-            { label: 'สินค้าไม่ซ้ำ',  value: uniqueItems,              icon: '🏷️', color: 'text-purple-400' },
+            { label: 'เบิกวันนี้',    value: todayWithdraw,            color: 'text-red-400' },
+            { label: 'รวมชิ้นที่เบิก', value: totalQty.toLocaleString(),  color: 'text-amber-400' },
+            { label: 'สินค้าไม่ซ้ำ',  value: uniqueItems,               color: 'text-purple-400' },
           ].map((s, i) => (
             <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <div className="text-lg mb-1">{s.icon}</div>
@@ -172,7 +172,7 @@ export default function WithdrawHistoryPage() {
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center">
-                      <div className="text-3xl mb-2">📭</div>
+                      <div className="text-3xl mb-2"></div>
                       <p className="text-slate-500">ยังไม่มีประวัติการเบิก</p>
                     </td>
                   </tr>

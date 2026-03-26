@@ -231,8 +231,8 @@ export default function ScanPage() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <h2 className="text-lg font-bold">สแกน QR / Barcode สินค้า</h2>
-          <p className="text-slate-500 text-sm mt-0.5">รองรับ EAN-13, Code128, QR Code</p>
+          <h2 className="text-lg font-bold">QR</h2>
+          <p className="text-slate-500 text-sm mt-0.5">รองรับ EAN-13,QR Code</p>
         </div>
 
         <div className="mb-4">
@@ -282,15 +282,15 @@ export default function ScanPage() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Barcode / ID */}
+            {/*ID */}
             <div>
               <label className="text-xs text-slate-400 uppercase tracking-widest block mb-1.5">
-                Barcode / ID <span className="text-red-400">*</span>
+                ID <span className="text-red-400">*</span>
               </label>
               <input value={form.product_id}
                 onChange={e => { set('product_id', e.target.value); setLookup(null) }}
                 onBlur={e => e.target.value && lookupBarcode(e.target.value)}
-                placeholder="สแกนหรือพิมพ์ barcode"
+                placeholder="สแกนหรือพิมพ์ ID สินค้า"
                 required
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 font-mono" />
             </div>

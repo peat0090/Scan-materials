@@ -14,8 +14,8 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/',                 label: 'ภาพรวม',      icon: '◻' },
-    { to: '/history',          label: 'ประวัติสแกน',  icon: '◫' },
-    { to: '/withdraw/history', label: 'ประวัติเบิก',  icon: '📋' },
+    { to: '/history',          label: 'ประวัติการรับ',  icon: '◫' },
+    { to: '/withdraw/history', label: 'ประวัติการเบิก',  icon: '📋' },
   ]
 
   return (
@@ -58,7 +58,7 @@ export default function Navbar() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5z" />
             </svg>
-            <span className="hidden sm:inline">สแกน QR</span>
+            <span className="hidden sm:inline">QR</span>
             <span className="sm:hidden">สแกน</span>
           </Link>
         )}
@@ -73,7 +73,7 @@ export default function Navbar() {
                 : 'bg-white/5 border-white/10 text-slate-300 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-300'
             }`}
           >
-            <span>📤</span>
+            
             <span className="hidden sm:inline">เบิกใช้</span>
           </Link>
         )}

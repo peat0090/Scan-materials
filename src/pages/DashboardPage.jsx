@@ -135,17 +135,17 @@ export default function DashboardPage() {
 
         {/* ── Greeting ── */}
         <div className="mb-6 fade-in">
-          <h2 className="text-xl font-bold text-white">สวัสดี, {user?.fullname} 👋</h2>
+          <h2 className="text-xl font-bold text-white">สวัสดี, {user?.fullname} </h2>
           <p className="text-slate-500 text-sm mt-0.5">{formatDate(new Date().toISOString())}</p>
         </div>
 
         {/* ── Stats cards ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 fade-in">
           {[
-            { label: 'สแกนวันนี้',    value: todayCount,                  icon: '📦', color: 'text-blue-400' },
-            { label: 'สแกน 7 วัน',    value: weekCount,                   icon: '📅', color: 'text-purple-400' },
-            { label: 'ยอดคงเหลือรวม', value: totalStock.toLocaleString(), icon: '🔢', color: 'text-amber-400' },
-            { label: 'สินค้าทั้งหมด', value: uniqueItems,                 icon: '🏷️', color: 'text-green-400' },
+            { label: 'รายการรับวันนี้',    value: todayCount,                   color: 'text-blue-400' },
+            { label: 'รายการรับ 7 วัน',    value: weekCount,                   color: 'text-purple-400' },
+            { label: 'ยอดคงเหลือรวม', value: totalStock.toLocaleString(),  color: 'text-amber-400' },
+            { label: 'สินค้าทั้งหมด', value: uniqueItems,                  color: 'text-green-400' },
           ].map((s, i) => (
             <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <div className="text-lg mb-1">{s.icon}</div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
             <div>
               <h3 className="font-semibold text-white">รายการสินค้าทั้งหมด</h3>
               <p className="text-slate-500 text-xs mt-0.5">
-                {filtered.length} รายการ · ยอดคงเหลือจาก products (สแกนเข้า − เบิกออก)
+                {filtered.length} รายการ · ยอดคงเหลือจาก products (รับเข้า − เบิกออก)
               </p>
             </div>
             <input
@@ -205,7 +205,6 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {filtered.map(p => {
                 const sectionCls = sectionColor[p.section] || 'bg-slate-500/15 text-slate-400 border-slate-500/25'
-                const isLow      = p.stock_quantity <= 5
 
                 return (
                   <Link

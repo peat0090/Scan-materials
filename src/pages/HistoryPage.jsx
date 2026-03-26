@@ -177,14 +177,14 @@ export default function HistoryPage() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-lg font-bold">ประวัติการสแกนทั้งหมด</h2>
+            <h2 className="text-lg font-bold">ประวัติการรับทั้งหมด</h2>
             <p className="text-slate-500 text-sm">{filtered.length} รายการ · กดแถวเพื่อดูประวัติการเพิ่ม</p>
           </div>
           <button
             onClick={exportCSV}
             className="flex items-center gap-1.5 text-xs bg-white/10 border border-white/10 text-white px-3 py-2 rounded-lg hover:bg-white/15 transition"
           >
-            📥 Export CSV
+           Export CSV
           </button>
         </div>
 
