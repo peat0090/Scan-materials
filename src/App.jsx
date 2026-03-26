@@ -1,13 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
-import LoginPage      from './pages/LoginPage'
-import DashboardPage  from './pages/DashboardPage'
-import ScanPage       from './pages/ScanPage'
-import HistoryPage    from './pages/HistoryPage'
-import ItemDetailPage from './pages/ItemDetailPage'
+import LoginPage           from './pages/LoginPage'
+import DashboardPage       from './pages/DashboardPage'
+import ScanPage            from './pages/ScanPage'
+import HistoryPage         from './pages/HistoryPage'
+import ItemDetailPage      from './pages/ItemDetailPage'
 import WithdrawPage        from './pages/WithdrawPage'
 import WithdrawHistoryPage from './pages/WithdrawHistoryPage'
-
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -24,14 +23,15 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login"       element={<LoginPage />} />
-        <Route path="/"            element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-        <Route path="/scan"        element={<CanScanRoute><ScanPage /></CanScanRoute>} />
-        <Route path="/history"     element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
-        <Route path="/items/:id"   element={<PrivateRoute><ItemDetailPage /></PrivateRoute>} />
-        <Route path="*"            element={<Navigate to="/" />} />
+        <Route path="/login"            element={<LoginPage />} />
+        <Route path="/"                 element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+        <Route path="/scan"             element={<CanScanRoute><ScanPage /></CanScanRoute>} />
+        <Route path="/history"          element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
+        <Route path="/items/:id"        element={<PrivateRoute><ItemDetailPage /></PrivateRoute>} />
         <Route path="/withdraw"         element={<PrivateRoute><WithdrawPage /></PrivateRoute>} />
-        <Route path="/withdraw/history" element={<PrivateRoute><WithdrawHistoryPage /></PrivateRoute>} />
+        <Route path="/withdraw-history" element={<PrivateRoute><WithdrawHistoryPage /></PrivateRoute>} />
+        {/* wildcard ต้องอยู่บรรทัดสุดท้ายเสมอ */}
+        <Route path="*"                 element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )
