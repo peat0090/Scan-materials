@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import Navbar from '../components/Navbar'
@@ -120,6 +120,7 @@ const EMPTY_FORM = { product_id: '', product_name: '', quantity: 1, section: '',
 export default function ScanPage() {
   const { user } = useAuth()
   const navigate  = useNavigate()
+  const location  = useLocation()
 
   const [form, setForm]       = useState(EMPTY_FORM)
   const [saving, setSaving]   = useState(false)
@@ -128,15 +129,49 @@ export default function ScanPage() {
   const [lookup, setLookup]   = useState(null)   // { currentStock, product }
   const [looking, setLooking] = useState(false)
 
+  // ── รูปภาพแนบ ────────────────────────────────────────────────
+  const [imageFile,    setImageFile]    = useState(null)   // File object
+  const [imagePreview, setImagePreview] = useState(null)   // base64 preview
+  const [dragging,     setDragging]     = useState(false)
+  const dropRef = useRef(null)
+
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
 
+  // ── ฟังก์ชันรับ File → preview ────────────────────────────────
+  const attachImage = useCallback((file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = (e) => setImagePreview(e.target.result)
+    reader.readAsDataURL(file)
+  }, [])
+
+  // Ctrl+V paste
+  useEffect(() => {
+    const fn = (e) => {
+      for (const item of e.clipboardData?.items || []) {
+        if (item.type.startsWith('image/')) { attachImage(item.getAsFile()); break }
+      }
+    }
+    window.addEventListener('paste', fn)
+    return () => window.removeEventListener('paste', fn)
+  }, [attachImage])
+
+  // Drag & Drop
+  const handleDragOver  = (e) => { e.preventDefault(); setDragging(true) }
+  const handleDragLeave = ()  => setDragging(false)
+  const handleDrop      = (e) => {
+    e.preventDefault(); setDragging(false)
+    const file = e.dataTransfer?.files?.[0]
+    if (file) attachImage(file)
+  }
+
   // ── ค้นหาสินค้าจาก barcode ดึง stock จาก products โดยตรง ──
-  const lookupBarcode = async (barcode) => {
+  const lookupBarcode = useCallback(async (barcode) => {
     if (!barcode) return
     setLooking(true)
     setLookup(null)
 
-    // ดึงข้อมูลสินค้าและ stock_quantity จาก products
     const { data: product } = await supabase
       .from('products')
       .select('*')
@@ -155,10 +190,21 @@ export default function ScanPage() {
 
     setLookup({
       product,
-      currentStock: product?.stock_quantity ?? null, // null = ไม่พบในระบบ
+      currentStock: product?.stock_quantity ?? null,
     })
     setLooking(false)
-  }
+  }, []) // supabase is stable
+
+  // ── Pre-fill จาก ?prefill=BARCODE (มาจาก ItemDetailPage) ──
+  useEffect(() => {
+    const params  = new URLSearchParams(location.search)
+    const prefill = params.get('prefill')
+    if (prefill) {
+      // Defer the async call to avoid cascading renders
+      const timer = setTimeout(() => lookupBarcode(prefill), 0)
+      return () => clearTimeout(timer)
+    }
+  }, [location.search, lookupBarcode])
 
   const handleQRScan = async (raw) => {
     let barcode = raw
@@ -191,7 +237,6 @@ export default function ScanPage() {
         product_id:    form.product_id.trim(),
         product_name:  form.product_name.trim(),
         quantity:      qty,
-        unit:          form.unit,
         section:       form.section,
         division:      form.division,
         receiver:      form.receiver.trim() || user?.fullname,
@@ -203,6 +248,29 @@ export default function ScanPage() {
       .select().single()
 
     if (err) { setError('บันทึกไม่สำเร็จ: ' + err.message); setSaving(false); return }
+
+    // ── อัปโหลดรูปภาพ (ถ้ามี) ────────────────────────────────
+    if (imageFile && form.product_id.trim()) {
+      try {
+        const pid = form.product_id.trim()
+        const ext = imageFile.name?.split('.').pop()?.toLowerCase() || 'png'
+        const fileName = `${pid}/${Date.now()}.${ext}`
+        const { error: sErr } = await supabase.storage
+          .from('product-images').upload(fileName, imageFile, { upsert: false })
+        if (!sErr) {
+          const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName)
+          // ตรวจว่ามีรูปหลักอยู่แล้วหรือยัง
+          const { count } = await supabase.from('product_images')
+            .select('*', { count: 'exact', head: true }).eq('product_id', pid)
+          await supabase.from('product_images').insert({
+            product_id:  pid,
+            image_url:   publicUrl,
+            is_primary:  (count || 0) === 0,
+            uploaded_by: user?.fullname,
+          })
+        }
+      } catch { /* รูปอัปโหลดไม่ได้ก็ไม่ block การบันทึก */ }
+    }
 
     setSaved(true); setSaving(false)
     setTimeout(() => navigate(`/items/${data.id}`), 1200)
@@ -231,8 +299,8 @@ export default function ScanPage() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="mb-6">
-          <h2 className="text-lg font-bold">QR</h2>
-          <p className="text-slate-500 text-sm mt-0.5">รองรับ EAN-13,QR Code</p>
+          <h2 className="text-lg font-bold">สแกน QR / Barcode สินค้า</h2>
+          <p className="text-slate-500 text-sm mt-0.5">รองรับ EAN-13, Code128, QR Code</p>
         </div>
 
         <div className="mb-4">
@@ -282,15 +350,15 @@ export default function ScanPage() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/*ID */}
+            {/* Barcode / ID */}
             <div>
               <label className="text-xs text-slate-400 uppercase tracking-widest block mb-1.5">
-                ID <span className="text-red-400">*</span>
+                Barcode / ID <span className="text-red-400">*</span>
               </label>
               <input value={form.product_id}
                 onChange={e => { set('product_id', e.target.value); setLookup(null) }}
                 onBlur={e => e.target.value && lookupBarcode(e.target.value)}
-                placeholder="สแกนหรือพิมพ์ ID สินค้า"
+                placeholder="สแกนหรือพิมพ์ barcode"
                 required
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 font-mono" />
             </div>
@@ -365,6 +433,44 @@ export default function ScanPage() {
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 resize-none" />
           </div>
 
+          {/* ── รูปภาพแนบ ── */}
+          <div>
+            <label className="text-xs text-slate-400 uppercase tracking-widest block mb-1.5">
+              รูปภาพสินค้า <span className="text-slate-600 normal-case">(ไม่บังคับ · Ctrl+V วางได้เลย)</span>
+            </label>
+            {imagePreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-white/15 bg-white/3 aspect-video flex items-center justify-center">
+                <img src={imagePreview} alt="preview" className="max-h-48 max-w-full object-contain" />
+                <button
+                  type="button"
+                  onClick={() => { setImageFile(null); setImagePreview(null) }}
+                  className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/80 text-white rounded-full text-sm flex items-center justify-center transition"
+                >✕</button>
+                <span className="absolute bottom-2 left-2 text-[10px] text-white/50 bg-black/40 px-2 py-0.5 rounded-full">
+                  {imageFile?.name}
+                </span>
+              </div>
+            ) : (
+              <div
+                ref={dropRef}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('img-file-input').click()}
+                className={`cursor-pointer rounded-xl border-2 border-dashed transition-all duration-150 flex flex-col items-center justify-center gap-1.5 py-6 text-center
+                  ${dragging ? 'border-blue-400 bg-blue-500/10' : 'border-white/10 bg-white/3 hover:border-white/25 hover:bg-white/5'}`}
+              >
+                <span className="text-2xl">🖼️</span>
+                <p className="text-xs text-slate-500">ลากรูปมาวาง หรือ Ctrl+V</p>
+                <p className="text-[10px] text-slate-700">กดเพื่อเลือกไฟล์</p>
+              </div>
+            )}
+            <input
+              id="img-file-input" type="file" accept="image/*" className="hidden"
+              onChange={e => { attachImage(e.target.files?.[0]); e.target.value = '' }}
+            />
+          </div>
+
           {/* ผู้สแกน + เวลา */}
           <div className="bg-white/3 border border-white/5 rounded-xl px-4 py-3 flex items-center justify-between">
             <div>
@@ -384,7 +490,7 @@ export default function ScanPage() {
 
           <button type="submit" disabled={saving}
             className="w-full bg-white text-slate-900 font-semibold rounded-xl py-3 text-sm hover:bg-slate-100 active:scale-95 transition disabled:opacity-50">
-            {saving ? 'กำลังบันทึก...' : `📥 รับเข้า ${form.quantity} ${form.unit}`}
+            {saving ? 'กำลังบันทึก...' : `รับเข้า ${form.quantity} ${form.unit}`}
           </button>
         </form>
       </div>

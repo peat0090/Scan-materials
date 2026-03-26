@@ -90,7 +90,20 @@ export default function DashboardPage() {
           .order('product_name', { ascending: true })
 
         if (error) throw error
-        setProducts(prods || [])
+
+        // ── 1b. ดึงรูปหลักจาก product_images โดยตรง (แก้ปัญหา URL เสียจาก view) ──
+        const { data: imgs } = await supabase
+          .from('product_images')
+          .select('product_id, image_url')
+          .eq('is_primary', true)
+
+        const imgMap = {}
+        for (const img of imgs || []) imgMap[img.product_id] = img.image_url
+
+        setProducts((prods || []).map(p => ({
+          ...p,
+          primary_image_url: imgMap[p.product_id] || p.primary_image_url || null,
+        })))
 
         // ── 2. ดึงสถิติการสแกนวันนี้ / 7 วัน ─────────────────────
         const now       = new Date()
@@ -207,10 +220,9 @@ export default function DashboardPage() {
                 const sectionCls = sectionColor[p.section] || 'bg-slate-500/15 text-slate-400 border-slate-500/25'
 
                 return (
-                  <Link
-                    to={`/items/${p.product_id}`}
+                  <div
                     key={p.product_id}
-                    className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/25 transition-all duration-200 hover:scale-[1.02]"
+                    className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
                   >
                     {/* ── รูปภาพ ── */}
                     <div className="aspect-square overflow-hidden relative">
@@ -243,7 +255,7 @@ export default function DashboardPage() {
 
                     {/* ── ข้อมูล ── */}
                     <div className="p-3">
-                      <p className="text-xs font-semibold text-white truncate group-hover:text-blue-300 transition">
+                      <p className="text-xs font-semibold text-white truncate">
                         {p.product_name || '(ไม่มีชื่อ)'}
                       </p>
                       <p className="text-xs text-slate-600 font-mono mt-0.5 truncate">{p.product_id}</p>
@@ -268,7 +280,7 @@ export default function DashboardPage() {
 
                       <p className="text-xs text-slate-700 mt-1 truncate">{formatDate(p.last_scan_at)}</p>
                     </div>
-                  </Link>
+                  </div>
                 )
               })}
             </div>

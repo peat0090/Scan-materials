@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import Navbar from '../components/Navbar'
 
@@ -180,7 +181,11 @@ export default function WithdrawHistoryPage() {
                   const secCls = sectionColor[r.section] || 'bg-slate-500/15 text-slate-400 border-slate-500/25'
                   return (
                     <tr key={r.id} className="border-t border-white/5 hover:bg-white/3 transition">
-                      <td className="px-4 py-3 font-mono text-red-400 whitespace-nowrap">{r.product_id}</td>
+                      <td className="px-4 py-3 font-mono text-red-400 whitespace-nowrap">
+                        <Link to={`/items/${r.product_id}?tab=withdraw`} className="hover:text-red-300 transition">
+                          {r.product_id}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-white max-w-35 truncate">{r.product_name || '-'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="font-mono font-bold text-red-400">−{r.quantity}</span>

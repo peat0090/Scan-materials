@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import Navbar from '../components/Navbar'
 
@@ -119,12 +120,13 @@ const EMPTY_FORM = {
 
 export default function WithdrawPage() {
   const { user } = useAuth()
+  const location  = useLocation()
 
   const [form,    setForm]    = useState(EMPTY_FORM)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState('')
-  const [lookup,  setLookup]  = useState(null)   // { stock, product }
+  const [lookup,  setLookup]  = useState(null)
   const [looking, setLooking] = useState(false)
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
@@ -172,11 +174,18 @@ export default function WithdrawPage() {
     lookupBarcode(value)
   }
 
+  // ── Pre-fill จาก ?prefill=BARCODE (มาจาก ItemDetailPage) ──
+  useEffect(() => {
+    const params  = new URLSearchParams(location.search)
+    const prefill = params.get('prefill')
+    if (prefill) lookupBarcode(prefill)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Submit: INSERT ใน withdraw_records ──────────────────────
   // Trigger fn_stock_on_withdraw จะหัก products.stock_quantity อัตโนมัติ
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.product_id) return setError('กรุณากรอก ID สินค้า')
+    if (!form.product_id) return setError('กรุณากรอก Barcode / ID สินค้า')
 
     const qty = Number(form.quantity)
     if (qty <= 0) return setError('จำนวนต้องมากกว่า 0')
@@ -226,7 +235,7 @@ export default function WithdrawPage() {
         <Navbar />
         <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 px-4 text-center">
           <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-3xl animate-bounce">
-            
+            📤
           </div>
           <h2 className="text-xl font-bold text-white">เบิกสำเร็จ!</h2>
           <p className="text-slate-400 text-sm">
@@ -261,7 +270,7 @@ export default function WithdrawPage() {
         {/* Header */}
         <div className="mb-6">
           <h2 className="text-lg font-bold">เบิกใช้สินค้า</h2>
-          <p className="text-slate-500 text-sm mt-0.5">สแกน QR เพื่อเบิกสินค้าออกจากสต็อก</p>
+          <p className="text-slate-500 text-sm mt-0.5">สแกน QR / Barcode เพื่อเบิกสินค้าออกจากสต็อก</p>
         </div>
 
         {/* Scanner */}
@@ -323,13 +332,13 @@ export default function WithdrawPage() {
             {/* Barcode */}
             <div>
               <label className="text-xs text-slate-400 uppercase tracking-widest block mb-1.5">
-  ID <span className="text-red-400">*</span>
-</label>
+                Barcode / ID <span className="text-red-400">*</span>
+              </label>
               <input
                 value={form.product_id}
                 onChange={e => { set('product_id', e.target.value); setLookup(null) }}
                 onBlur={e => e.target.value && lookupBarcode(e.target.value)}
-                placeholder="สแกนหรือพิมพ์ ID สินค้า"
+                placeholder="สแกนหรือพิมพ์ barcode"
                 required
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-white/20 font-mono"
               />
@@ -466,7 +475,7 @@ export default function WithdrawPage() {
             {saving
               ? 'กำลังบันทึก...'
               : lookup && lookup.stock <= 0 && lookup.found
-              ? ' สต็อกหมด'
+              ? 'สต็อกหมด'
               : ` ยืนยันเบิก ${form.quantity} ${form.unit}`
             }
           </button>
